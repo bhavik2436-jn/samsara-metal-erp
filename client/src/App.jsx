@@ -72,9 +72,16 @@ const detectHsnCode = (text) => {
 };
 
 const LOCATIONS = [
-  "Shop / Main Godown",
-  "Location 2 (Site / Yard)"
+  "Shop  (Site 1)",
+  "Vasai (Site 2)",
 ];
+
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
 
 export default function App() {
   const [tab, setTab] = useState('dashboard');
@@ -351,7 +358,7 @@ export default function App() {
 
     const msg = `*SAMSARA METAL TRADERS*%0A` +
       `Voucher: *${v.voucherNo}* (${v.voucherType})%0A` +
-      `Date: ${v.voucherDate} | Site: ${v.locationName}%0A` +
+      `Date: ${formatDateDDMMYYYY(v.voucherDate)} | Vasai, Palghar%0A` +
       `Party: *${v.partyName}*%0A` +
       `------------------------%0A` +
       `${itemLines}%0A` +
@@ -522,14 +529,14 @@ export default function App() {
                   <div>
                     <h3 className="fw-bold mb-0 text-dark">SAMSARA METAL TRADERS</h3>
                     <div className="small text-muted">Dealers in Non-Ferrous Metals: Copper, Brass, SS, Aluminium &amp; Nickel Scrap</div>
-                    <div className="small fw-semibold">Mumbai, Maharashtra | Location: {printVoucher.locationName}</div>
+                    <div className="small fw-semibold">Vasai, Palghar</div>
                   </div>
                   <div className="text-end">
                     <span className="badge bg-dark fs-6 mb-1">
                       {printVoucher.gstPercent > 0 ? 'TAX INVOICE' : `${printVoucher.voucherType} VOUCHER`}
                     </span>
                     <div className="fw-bold">No: {printVoucher.voucherNo}</div>
-                    <div className="small">Date: {printVoucher.voucherDate}</div>
+                    <div className="small fw-semibold">Date: {formatDateDDMMYYYY(printVoucher.voucherDate)}</div>
                   </div>
                 </div>
 
@@ -677,7 +684,7 @@ export default function App() {
                       const netWt = v.totalNetKg ?? v.items.reduce((s, i) => s + Number(i.netKg ?? i.qtyKg ?? 0), 0);
                       return (
                         <tr key={v._id}>
-                          <td>{v.voucherDate}</td>
+                          <td>{formatDateDDMMYYYY(v.voucherDate)}</td>
                           <td className="fw-bold">{v.voucherNo}</td>
                           <td><span className={`badge ${v.voucherType === 'SALE' ? 'bg-success' : 'bg-warning text-dark'}`}>{v.voucherType}</span></td>
                           <td><span className="badge bg-secondary">{v.locationName}</span></td>
@@ -1111,7 +1118,7 @@ export default function App() {
                     <tbody>
                       {trips.map(t => (
                         <tr key={t._id}>
-                          <td><strong>{t.tripDate}</strong><br /><span className="badge bg-secondary">{t.locationName}</span></td>
+                          <td><strong>{formatDateDDMMYYYY(t.tripDate)}</strong><br /><span className="badge bg-secondary">{t.locationName}</span></td>
                           <td className="fw-bold text-primary">₹{Number(t.cashTaken).toLocaleString('en-IN')}</td>
                           <td>₹{Number(t.maalPurchasedCash).toLocaleString('en-IN')}<br /><small className="text-muted">{t.maalWeightKg} KG</small></td>
                           <td className="text-danger">
@@ -1173,7 +1180,7 @@ export default function App() {
                     .filter(v => v.partyName.toLowerCase().includes(searchParty.toLowerCase()) || v.voucherNo.toLowerCase().includes(searchParty.toLowerCase()))
                     .map(v => (
                       <tr key={v._id}>
-                        <td>{v.voucherDate}</td>
+                        <td>{formatDateDDMMYYYY(v.voucherDate)}</td>
                         <td className="fw-bold">{v.voucherNo}</td>
                         <td><span className={`badge ${v.voucherType === 'SALE' ? 'bg-success' : 'bg-warning text-dark'}`}>{v.voucherType}</span></td>
                         <td>{v.locationName}</td>
@@ -1248,7 +1255,7 @@ export default function App() {
                     <tbody>
                       {workerLogs.map(w => (
                         <tr key={w._id}>
-                          <td>{w.logDate}</td>
+                          <td>{formatDateDDMMYYYY(w.logDate)}</td>
                           <td className="fw-bold">{w.workerName}</td>
                           <td>{w.locationName}</td>
                           <td><span className={`badge ${w.attendance === 'Present' ? 'bg-success' : 'bg-secondary'}`}>{w.attendance}</span></td>
