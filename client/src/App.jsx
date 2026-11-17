@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import axios from 'axios';
 import {
   Plus, Trash2, Layers, Printer, Share2, ArrowLeftRight, RefreshCw
@@ -71,6 +72,38 @@ export default function App() {
   const [transfers, setTransfers] = useState([]);
   const [workerLogs, setWorkerLogs] = useState([]);
   const [printVoucher, setPrintVoucher] = useState(null);
+
+  const billRef = useRef(null);
+
+  const shareBillAsPhoto = async (v) => {
+    if (!billRef.current) return;
+    try {
+      const canvas = await html2canvas(billRef.current, { scale: 2, backgroundColor: '#ffffff' });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `${v.voucherNo}.png`, { type: 'image/png' });
+
+        // Phone ke liye Direct WhatsApp Photo Share
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Bill - ${v.voucherNo}`,
+            text: `Samsara Metal Traders Bill (${v.partyName})`
+          });
+        } else {
+          // Laptop/Desktop par photo download ho jayegi
+          const link = document.createElement('a');
+          link.download = `${v.voucherNo}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          alert("Bill ki Photo download ho gayi hai! Ab WhatsApp par paste/send kar dein.");
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error("Photo share error:", err);
+      alert("Photo share karne mein dikkat aayi, text WhatsApp use karein.");
+    }
+  };
 
   const [locationName, setLocationName] = useState(LOCATIONS[0]);
   const [partyName, setPartyName] = useState('');
@@ -454,98 +487,103 @@ export default function App() {
       </nav>
 
       <div className="container-fluid px-3 px-md-4 my-4">
-        {/* PRINTABLE INVOICE MODAL */}
+{/* PRINTABLE INVOICE MODAL */}
         {printVoucher && (
           <div className="card border-dark shadow-lg p-4 mb-4 bg-white mx-auto" style={{ maxWidth: '850px' }}>
-            <div className="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
-              <div>
-                <h3 className="fw-bold mb-0">SAMSARA METAL TRADERS</h3>
-                <div className="small text-muted">Dealers in Non-Ferrous Metals: Copper, Brass, SS, Aluminium &amp; Nickel Scrap</div>
-                <div className="small fw-semibold">Mumbai, Maharashtra | Location: {printVoucher.locationName}</div>
+            {/* IS DIV KI PHOTO BANEGI */}
+            <div ref={billRef} className="p-3 bg-white text-dark">
+              <div className="d-flex justify-content-between align-items-start border-bottom border-dark pb-3 mb-3">
+                <div>
+                  <h3 className="fw-bold mb-0">SAMSARA METAL TRADERS</h3>
+                  <div className="small text-muted">Dealers in Non-Ferrous Metals: Copper, Brass, SS, Aluminium &amp; Nickel Scrap</div>
+                  <div className="small fw-semibold">Mumbai, Maharashtra | Location: {printVoucher.locationName}</div>
+                </div>
+                <div className="text-end">
+                  <span className="badge bg-dark fs-6 mb-1">
+                    {printVoucher.gstPercent > 0 ? 'TAX INVOICE' : `${printVoucher.voucherType} VOUCHER`}
+                  </span>
+                  <div className="fw-bold">No: {printVoucher.voucherNo}</div>
+                  <div className="small">Date: {printVoucher.voucherDate}</div>
+                </div>
               </div>
-              <div className="text-end">
-                <span className="badge bg-dark fs-6 mb-1">
-                  {printVoucher.gstPercent > 0 ? 'TAX INVOICE' : `${printVoucher.voucherType} VOUCHER`}
-                </span>
-                <div className="fw-bold">No: {printVoucher.voucherNo}</div>
-                <div className="small">Date: {printVoucher.voucherDate}</div>
-              </div>
-            </div>
 
-            <div className="row mb-3 small">
-              <div className="col-6">
-                <strong>Party Name:</strong> {printVoucher.partyName}<br />
-                {printVoucher.partyPhone && <><strong>Phone:</strong> {printVoucher.partyPhone}<br /></>}
-                {printVoucher.partyGstin && <><strong>Party GSTIN:</strong> {printVoucher.partyGstin}</>}
+              <div className="row mb-3 small">
+                <div className="col-6">
+                  <strong>Party Name:</strong> <span className="fw-bold fs-6">{printVoucher.partyName}</span><br />
+                  {printVoucher.partyPhone && <><strong>Phone:</strong> {printVoucher.partyPhone}<br /></>}
+                  {printVoucher.partyGstin && <><strong>Party GSTIN:</strong> {printVoucher.partyGstin}</>}
+                </div>
+                <div className="col-6 text-end">
+                  <strong>Vehicle No:</strong> {printVoucher.vehicleNo || '-'}<br />
+                  <strong>Kanta Slip No:</strong> {printVoucher.kataSlipNo || '-'}<br />
+                  <strong>Payment Mode:</strong> {printVoucher.paymentMode}
+                </div>
               </div>
-              <div className="col-6 text-end">
-                <strong>Vehicle No:</strong> {printVoucher.vehicleNo || '-'}<br />
-                <strong>Kanta Slip No:</strong> {printVoucher.kataSlipNo || '-'}<br />
-                <strong>Payment Mode:</strong> {printVoucher.paymentMode}
-              </div>
-            </div>
 
-            <table className="table table-bordered table-sm align-middle small">
-              <thead className="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Item Name</th>
-                  <th>HSN Code</th>
-                  <th>Grade %</th>
-                  <th className="text-end">Gross KG</th>
-                  <th className="text-end">Less</th>
-                  <th className="text-end">Net KG</th>
-                  <th className="text-end">Rate (₹)</th>
-                  <th className="text-end">Total (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {printVoucher.items.map((it, idx) => (
-                  <tr key={idx}>
-                    <td>{idx + 1}</td>
-                    <td className="fw-bold">{it.itemName}</td>
-                    <td className="fw-semibold">{it.hsn || detectHsnCode(it.itemName)}</td>
-                    <td>{it.alloyGrade || '-'}</td>
-                    <td className="text-end">{Number(it.grossKg ?? it.qtyKg).toFixed(2)}</td>
-                    <td className="text-end text-danger">{Number(it.lessKg || 0).toFixed(2)}</td>
-                    <td className="text-end fw-bold">{Number(it.netKg ?? it.qtyKg).toFixed(2)}</td>
-                    <td className="text-end">₹{Number(it.rate).toFixed(2)}</td>
-                    <td className="text-end fw-bold">₹{Number(it.lineTotal).toFixed(2)}</td>
+              <table className="table table-bordered border-dark table-sm align-middle">
+                <thead className="table-dark">
+                  <tr>
+                    <th>#</th>
+                    <th className="fw-bold">Item Name</th>
+                    <th>HSN</th>
+                    <th className="text-end">Gross</th>
+                    <th className="text-end">Less</th>
+                    <th className="text-end fw-bold">Net Qty (KG)</th>
+                    <th className="text-end fw-bold">Rate (₹)</th>
+                    <th className="text-end fw-bold">Total (₹)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {printVoucher.items.map((it, idx) => (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td>
+                      <td className="fw-bold fs-6 text-dark">{it.itemName}</td>
+                      <td className="small">{it.hsn || detectHsnCode(it.itemName)}</td>
+                      <td className="text-end small">{Number(it.grossKg ?? it.qtyKg).toFixed(2)}</td>
+                      <td className="text-end text-danger small">{Number(it.lessKg || 0).toFixed(2)}</td>
+                      <td className="text-end fw-bold fs-6 text-dark">{Number(it.netKg ?? it.qtyKg).toFixed(2)} KG</td>
+                      <td className="text-end fw-bold fs-6 text-dark">₹{Number(it.rate).toFixed(2)}</td>
+                      <td className="text-end fw-bold fs-6 text-dark">₹{Number(it.lineTotal).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-            <div className="row justify-content-end small">
-              <div className="col-md-5">
-                <div className="d-flex justify-content-between"><span>Sub-Total:</span><strong>₹{Number(printVoucher.subTotal).toFixed(2)}</strong></div>
-                {printVoucher.kantaLoadingCharges > 0 && (
-                  <div className="d-flex justify-content-between"><span>Kanta / Loading Charges:</span><span>₹{Number(printVoucher.kantaLoadingCharges).toFixed(2)}</span></div>
-                )}
-                {printVoucher.gstPercent > 0 && (
-                  <div className="d-flex justify-content-between">
-                    <span>GST ({printVoucher.gstPercent}% {printVoucher.gstType === 'IGST' ? 'IGST' : 'CGST+SGST'}):</span>
-                    <span>₹{Number(printVoucher.gstAmount).toFixed(2)}</span>
+              <div className="row justify-content-end small mt-2">
+                <div className="col-md-6">
+                  <div className="d-flex justify-content-between"><span>Sub-Total:</span><strong>₹{Number(printVoucher.subTotal).toLocaleString('en-IN')}</strong></div>
+                  {printVoucher.kantaLoadingCharges > 0 && (
+                    <div className="d-flex justify-content-between"><span>Kanta / Loading Charges:</span><span>₹{Number(printVoucher.kantaLoadingCharges).toLocaleString('en-IN')}</span></div>
+                  )}
+                  {printVoucher.gstPercent > 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span>GST ({printVoucher.gstPercent}% {printVoucher.gstType === 'IGST' ? 'IGST' : 'CGST+SGST'}):</span>
+                      <span>₹{Number(printVoucher.gstAmount).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between fs-5 fw-bold border-top border-dark pt-1 mt-1">
+                    <span>GRAND TOTAL:</span><span>₹{Number(printVoucher.grandTotal).toLocaleString('en-IN')}</span>
                   </div>
-                )}
-                <div className="d-flex justify-content-between fs-6 fw-bold border-top pt-1 mt-1">
-                  <span>GRAND TOTAL:</span><span>₹{Number(printVoucher.grandTotal).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="d-flex justify-content-between text-success fw-semibold">
-                  <span>Paid / Received:</span><span>₹{Number(printVoucher.paidAmount).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="d-flex justify-content-between text-danger fw-bold fs-6 border-top pt-1">
-                  <span>BALANCE BAAKI:</span><span>₹{Number(printVoucher.balanceAmount).toLocaleString('en-IN')}</span>
+                  <div className="d-flex justify-content-between text-success fw-bold">
+                    <span>Paid / Received:</span><span>₹{Number(printVoucher.paidAmount).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="d-flex justify-content-between text-danger fw-bold fs-5 border-top border-dark pt-1">
+                    <span>BALANCE BAAKI:</span><span>₹{Number(printVoucher.balanceAmount).toLocaleString('en-IN')}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-3 d-print-none">
+            {/* BUTTONS (PHOTO MEIN NAHI AAYENGE) */}
+            <div className="d-flex flex-wrap justify-content-end gap-2 mt-3 pt-2 border-top d-print-none">
+              <button className="btn btn-primary btn-sm fw-bold" onClick={() => shareBillAsPhoto(printVoucher)}>
+                📸 Direct Send Bill Photo (WhatsApp)
+              </button>
               <button className="btn btn-success btn-sm fw-bold" onClick={() => shareOnWhatsApp(printVoucher)}>
-                <Share2 size={15} /> Send to WhatsApp (Any Number)
+                <Share2 size={15} /> Send Text Message
               </button>
               <button className="btn btn-dark btn-sm fw-bold" onClick={() => window.print()}>
-                <Printer size={15} /> Print Invoice / Save PDF
+                <Printer size={15} /> Print / PDF
               </button>
               <button className="btn btn-outline-secondary btn-sm" onClick={() => setPrintVoucher(null)}>Close</button>
             </div>
